@@ -62,9 +62,6 @@ odoo.define('web_tree_image.ColumnImage', function (require) {
                         imageArgs.resize = self.resize;
                     }
                     self.src = session.url('/web/binary/image', imageArgs);
-                    //if (this.filename) {
-                    //    self.src += '&filename_field=' + this.filename;
-                    //}
                 }
             } else {
                 if (!/\//.test(row_data[this.id].value)) {
