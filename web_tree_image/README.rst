@@ -33,6 +33,8 @@ if you want to make the server return a resized, maybe to save data by making it
 return a smaller one or to have uniform images, use the
 ``resize="<width>,<height>"`` attribute.
 
+You can set display=icon in order to get a clickable picture icon that will open a full screen preview of the image. Set display=thumbnail to get a clickable thumbnail.
+
 Credits
 =======
 
