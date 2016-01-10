@@ -17,8 +17,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-openerp.web_tree_image = function (instance) {
-    instance.web.list.Image = instance.web.list.Column.extend({
+odoo.define('web_tree_image.ColumnImage', function (require) {
+    "use strict";
+
+    var core = require('web.core');
+    var QWeb = core.qweb;
+    var list_widget_registry = core.list_widget_registry;
+    var session = require('web.session');
+
+    var ColumnImage = list_widget_registry.get('field').extend({
         format: function (row_data, options) {
             /* Return a valid img tag. For image fields, test if the
              field's value contains just the binary size and retrieve
@@ -26,34 +33,80 @@ openerp.web_tree_image = function (instance) {
             Otherwise, assume a character field containing either a
             stock Odoo icon name without path or extension or a fully
             fledged location or data url */
-            if (!row_data[this.id] || !row_data[this.id].value) {
-                return '';
+            var self = this;
+
+            /*
+            Allow image to be displayed in 3 different ways:
+             - 'inline':    display image directly in tree view (default)
+             - 'icon':      display only an icon, show a full screen preview
+                            of the picture on click
+             - 'thumbnail': display image directly in tree view, show a
+                            full screen preview of the picture on click
+            */
+            self.display = self.display || 'inline';
+            if (!row_data[self.id] || !row_data[self.id].value) {
+                return options.value_if_empty || '';
             }
-            var value = row_data[this.id].value, src;
-            if (this.type === 'binary') {
+            var value = row_data[self.id].value;
+            if (self.type === 'binary') {
                 if (value && value.substr(0, 10).indexOf(' ') === -1) {
                     // The media subtype (png) seems to be arbitrary
-                    src = "data:image/png;base64," + value;
+                    self.src = "data:image/png;base64," + value;
                 } else {
                     var imageArgs = {
                         model: options.model,
-                        field: this.id,
+                        field: self.id,
                         id: options.id
                     }
-                    if (this.resize) {
-                        imageArgs.resize = this.resize;
+                    if (self.resize) {
+                        imageArgs.resize = self.resize;
                     }
-                    src = instance.session.url('/web/binary/image', imageArgs);
+                    self.src = session.url('/web/binary/image', imageArgs);
+                    //if (this.filename) {
+                    //    self.src += '&filename_field=' + this.filename;
+                    //}
                 }
             } else {
                 if (!/\//.test(row_data[this.id].value)) {
-                    src = '/web/static/src/img/icons/' + row_data[this.id].value + '.png';
+                    self.src = '/web/static/src/img/icons/' + row_data[self.id].value + '.png';
                 } else {
-                    src = row_data[this.id].value;
+                    self.src = row_data[self.id].value;
                 }
             }
-            return instance.web.qweb.render('ListView.row.image', {widget: this, src: src});
+            
+            if (self.display == 'icon' || self.display == 'thumbnail')
+            {
+                // use a unique id for the popup DOM node
+                var popupId = "o_web_tree_image_popup-" + row_data.id.value;
+                // use a unique id for the clickable DOM node
+                var clickableId = "o_web_tree_image_clickable-" +
+                                  row_data.id.value;
+
+                if (!$('#' + popupId).length)
+                {
+                    // add full screen preview to DOM
+                    $("body").append(QWeb.render("ListView.row.image.imageData",
+                                                 {widget: self,
+                                                  popupId: popupId}));
+                 }
+
+                // defer execution until after this function has returned and
+                // DOM elements have been rendered
+                window.setTimeout(function() {
+                    // enable full screen preview on click on icon
+                        $("#" + clickableId).click(function() {
+                        $('#' + popupId).modal('show');
+                        return false;
+                    });
+                }, 0);
+             }
+            
+            return QWeb.render('ListView.row.image', {
+                widget: self,
+                clickableId: clickableId});
         }
     });
-    instance.web.list.columns.add('field.image', 'instance.web.list.Image');
-};
+    
+    list_widget_registry.add('field.image', ColumnImage);
+});
+
